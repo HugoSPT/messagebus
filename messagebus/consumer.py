@@ -7,10 +7,10 @@ import logging
 
 
 class Consumer:
-    def __init__(self, broker_url, queue_prefix=None):
+    def __init__(self, broker_url, exchange, queue_prefix=None):
         self._logger = logging.getLogger(__name__)
         self.queue_prefix = queue_prefix
-        self.exchange = 'the_exchange'
+        self.exchange = exchange
         self.broker_url = broker_url
         self._subscriptions = []
         self._bound_count = 0
@@ -60,7 +60,7 @@ class Consumer:
         self.channel.basic_qos(prefetch_size=0, prefetch_count=1)
         self.channel.add_on_close_callback(self._on_channel_closed)
         self.channel.exchange_declare(self._on_dlx_declared,
-                                      'the_exchange.dead-letter',
+                                      '%s.dead-letter' % self.exchange,
                                       'fanout',
                                       durable=True)
         self.channel.exchange_declare(self._on_exchange_declared,
@@ -78,12 +78,13 @@ class Consumer:
     def _on_dlq_declared(self, frame):
         self.channel.queue_bind(lambda x: x,
                                 queue='dead-letter',
-                                exchange='the_exchange.dead-letter',
+                                exchange='%s.dead-letter' % self.exchange,
                                 routing_key='')
 
     def _on_exchange_declared(self, unused_frame):
         for subscription in self._subscriptions:
-            arguments = {'x-dead-letter-exchange': 'the_exchange.dead-letter'}
+            arguments = {
+                'x-dead-letter-exchange': '%s.dead-letter' % self.exchange}
             self.channel.queue_declare(
                 queue=subscription["queue_name"],
                 durable=False if subscription['transient_queue'] else True,

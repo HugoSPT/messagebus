@@ -11,11 +11,13 @@ except ImportError:
 
 
 class MessageBus:
-    RABBITMQ_DEFAULT_EXCHANGE = 'the_exchange'
+    RABBITMQ_DEFAULT_EXCHANGE = 'default'
 
     def __init__(self, broker_url='amqp://localhost', queue_prefix=None):
         self.broker_url = broker_url
-        self.consumer = Consumer(self.broker_url, queue_prefix)
+        self.consumer = Consumer(self.broker_url,
+                                 self.RABBITMQ_DEFAULT_EXCHANGE,
+                                 queue_prefix)
         self._queue_prefix = queue_prefix
 
     def publish(self, message, payload={}):
@@ -66,7 +68,9 @@ class MessageBus:
         def on_consumer_ready():
             consumer_ready.set()
 
-        consumer = Consumer(self.broker_url, self._queue_prefix)
+        consumer = Consumer(self.broker_url,
+                            self.RABBITMQ_DEFAULT_EXCHANGE,
+                            self._queue_prefix)
         consumer.on_connection_setup_finished = on_consumer_ready
         response = {}
         response_received = Event()
