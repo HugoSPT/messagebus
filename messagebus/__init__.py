@@ -1,17 +1,14 @@
 import pika
 import json
-import os
-import socket
-import inspect
 import datetime
 from threading import Thread, Event
-import time
 import uuid
 
 try:
     from consumer import Consumer
 except ImportError:
     from messagebus.consumer import Consumer
+
 
 class MessageBus:
     RABBITMQ_DEFAULT_EXCHANGE = 'the_exchange'
@@ -26,7 +23,8 @@ class MessageBus:
 
     def _publish(self, message, payload, correlation_id=None):
         body = json.dumps(self._prepare_payload(payload), ensure_ascii=False)
-        connection = pika.BlockingConnection(pika.URLParameters(self.broker_url))
+        connection = pika.BlockingConnection(pika.URLParameters(
+            self.broker_url))
         channel = connection.channel()
 
         properties = None
@@ -45,7 +43,7 @@ class MessageBus:
             if isinstance(value, datetime.datetime):
                 return value.isoformat()
             return value
-        proc_payload = { k: serialize(v) for k, v in payload.items() }
+        proc_payload = {k: serialize(v) for k, v in payload.items()}
         if 'timestamp' not in proc_payload:
             proc_payload['timestamp'] = datetime.datetime.utcnow().isoformat()
         return proc_payload
@@ -58,11 +56,13 @@ class MessageBus:
             correlation_id = kwargs['properties'].correlation_id
             response = callback(request_payload)
             self._publish(message + '.answered', response, correlation_id)
-        self.consumer.subscribe(message, subscribe_callback, transient_queue=True)
+        self.consumer.subscribe(message, subscribe_callback,
+                                transient_queue=True)
 
     def publish_and_get_response(self, message, payload, timeout_secs=5):
         sent_correlation = str(uuid.uuid1())
         consumer_ready = Event()
+
         def on_consumer_ready():
             consumer_ready.set()
 
@@ -78,10 +78,11 @@ class MessageBus:
             response_received.set()
 
         def wait_for_response():
-            consumer.subscribe(message + '.answered', response_callback, transient_queue=True)
+            consumer.subscribe(message + '.answered', response_callback,
+                               transient_queue=True)
             consumer.start()
 
-        thread = Thread(target = wait_for_response)
+        thread = Thread(target=wait_for_response)
         thread.daemon = True
         thread.start()
 
